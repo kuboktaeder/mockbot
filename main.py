@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from twython import Twython, TwythonError
 import re
 import configparser
