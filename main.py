@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # utf-8
-from twython import Twython, TwythonError
+from twython import Twython
 import re
 import configparser
 import localclasses
@@ -14,30 +14,7 @@ for victim in victims:
     user_tl = None
     last_tweet = None
     twitter_handle = re.sub(r'\W', '', victim)
-    try:
-        last_tweet = config.get('lasttweets', twitter_handle)
-    except configparser.Error:
-        print('No last tweet saved for ' + twitter_handle)
-    try:
-        user_tl = twitter.get_user_timeline(screen_name=twitter_handle, count=10,
-                                            include_rts=False, since_id=last_tweet)
-    except TwythonError as twython_exception:
-        error_str = str(twython_exception.error_code)
-        print('ERROR ' + error_str + ' for ' + twitter_handle)
-        if twython_exception.error_code == 404:
-            print('Screen name does not exist (anymore)')
-            user_id = None
-            try:
-                user_id = config.get('victims', twitter_handle)
-            except configparser.Error:
-                print('No user id saved')
-            if user_id:
-                print('Trying with user id: ' + user_id)
-                try:
-                    user_tl = twitter.get_user_timeline(id_str=user_id, count=10,
-                                                        include_rts=False, since_id=last_tweet)
-                except TwythonError as twython_exception:
-                    print(twython_exception)
+    user_tl = localclasses.TimelineProvider(twitter=twitter, screen_name=twitter_handle, config=config).return_user_tl()
     if user_tl:
         final_tweet = None
         for tweet in user_tl:
