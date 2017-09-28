@@ -15,10 +15,15 @@ for victim in victims:
     user_tl = localclasses.TimelineProvider(twitter=twitter, screen_name=twitter_handle, config=config).return_user_tl()
     if user_tl:
         final_tweet = None
+        special_tweet = None
         for tweet in user_tl:
             tweet_candidate = localclasses.TweetProvider(twitter=twitter, tweet=tweet)
             if not tweet_candidate.is_text_empty:
                 final_tweet = tweet_candidate
+            if tweet_candidate.special:
+                special_tweet = tweet_candidate
+        if special_tweet:
+            final_tweet = special_tweet
         if final_tweet:
             final_tweet.fire_tweet()
             config.set('lasttweets', final_tweet.screen_name, final_tweet.tweet_id_str)

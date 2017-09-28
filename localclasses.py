@@ -1,14 +1,17 @@
 # utf-8
 import re
+import requests
 import configparser
 from pathlib import Path
 from twython import Twython, TwythonError
+from wand.image import Image
 
 
 class TweetProvider:
     is_text_empty = True
     photo = None
     text = None
+    special = False
 
     def __init__(self, twitter, tweet):
         assert isinstance(twitter, Twython)
@@ -21,6 +24,7 @@ class TweetProvider:
             self.tweet_id_str = tweet['id_str']
         if self.twitter and self.tweet:
             self.set_text()
+            self.set_mock_image()
 
     def set_text(self):
         text = self.tweet['text']
@@ -34,15 +38,11 @@ class TweetProvider:
             self.is_text_empty = False
 
     def set_mock_image(self):
-        special_photo = Path(self.screen_name + '.jpg')
-        if special_photo.is_file():
-            self.photo = open(self.screen_name + '.jpg', 'rb')
-            print('INFO: ' + self.screen_name + '.jpg exists')
-        else:
-            self.photo = open('mock.jpg', 'rb')
+        imageprovider = ImageProvider(tweet=self.tweet)
+        self.photo = imageprovider.return_photo()
+        self.special = imageprovider.special
 
     def fire_tweet(self):
-        self.set_mock_image()
         uploaded_photo = self.twitter.upload_media(media=self.photo)
         print('INFO: Dropping tweet with text...')
         print(self.text)
@@ -65,7 +65,6 @@ class TimelineProvider:
         self.twitter = twitter
         self.screen_name = screen_name
         self.config = config
-
         self.get_user_tl()
 
     def get_user_tl(self):
@@ -75,8 +74,12 @@ class TimelineProvider:
         except configparser.Error:
             print('No last tweet saved for ' + self.screen_name)
         try:
-            self.user_tl = self.twitter.get_user_timeline(screen_name=self.screen_name, count=10,
+            if last_tweet:
+                self.user_tl = self.twitter.get_user_timeline(screen_name=self.screen_name, count=10,
                                                           include_rts=False, since_id=last_tweet)
+            else:
+                self.user_tl = self.twitter.get_user_timeline(screen_name=self.screen_name, count=10,
+                                                              include_rts=False)
         except TwythonError as twython_exception:
             error_str = str(twython_exception.error_code)
             print('ERROR ' + error_str + ' for ' + self.screen_name)
@@ -90,8 +93,13 @@ class TimelineProvider:
                 if user_id:
                     print('Trying with user id: ' + user_id)
                     try:
-                        self.user_tl = self.twitter.get_user_timeline(id_str=user_id, count=10,
-                                                                      include_rts=False, since_id=last_tweet)
+                        if last_tweet:
+                            self.user_tl = self.twitter.get_user_timeline(id_str=user_id, count=10,
+                                                                          include_rts=False, since_id=last_tweet)
+                        else:
+                            self.user_tl = self.twitter.get_user_timeline(id_str=user_id, count=10,
+                                                                          include_rts=False)
+
                     except TwythonError as twython_exception:
                         print(twython_exception)
 
@@ -99,4 +107,39 @@ class TimelineProvider:
         return self.user_tl
 
 
+class ImageProvider:
 
+    photo = None
+    special = False
+
+    def __init__(self, tweet):
+        self.tweet = tweet
+        if self.tweet:
+            user = self.tweet['user']
+            self.screen_name = user['screen_name']
+        self.set_photo()
+
+    def set_photo(self):
+        try:
+            media_url = self.tweet['entities']['media'][0]['media_url']
+            if re.search(r'\.jpg$', media_url):
+                mock = Image(filename='mock.png')
+                response = requests.get(media_url)
+                img = Image(blob=bytes(response.content))
+                img.format = 'jpeg'
+                img.composite(image=mock, left=0, top=0)
+                img.save(filename='temp.jpg')
+                self.photo = open('temp.jpg', 'rb')
+                self.special = True
+        except KeyError:
+            self.photo = None
+        if not self.special:
+            special_photo = Path(self.screen_name + '.jpg')
+            if special_photo.is_file():
+                self.photo = open(self.screen_name + '.jpg', 'rb')
+                print('INFO: ' + self.screen_name + '.jpg exists')
+            else:
+                self.photo = open('mock.jpg', 'rb')
+
+    def return_photo(self):
+        return self.photo
