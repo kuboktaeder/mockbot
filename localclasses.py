@@ -32,8 +32,6 @@ class TweetProvider:
         text = re.sub(r'\W', '', text)
         if len(text) > 0:
             self.is_text_empty = False
-        print(self.text)
-        print(self.is_text_empty)
 
     def set_mock_image(self):
         special_photo = Path(self.screen_name + '.jpg')
@@ -46,7 +44,7 @@ class TweetProvider:
     def fire_tweet(self):
         self.set_mock_image()
         uploaded_photo = self.twitter.upload_media(media=self.photo)
-        print('INFO: Dropping tweet...')
+        print('INFO: Dropping tweet with text...')
         print(self.text)
         try:
             self.twitter.update_status(status=self.text,

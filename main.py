@@ -11,8 +11,6 @@ config.read('twitter.cfg')
 twitter = Twython(config.get('twitter', 'app_key'), config.get('twitter', 'app_secret'),
                   config.get('twitter', 'oauth_token'), config.get('twitter', 'oauth_token_secret'))
 for victim in victims:
-    user_tl = None
-    last_tweet = None
     twitter_handle = re.sub(r'\W', '', victim)
     user_tl = localclasses.TimelineProvider(twitter=twitter, screen_name=twitter_handle, config=config).return_user_tl()
     if user_tl:
